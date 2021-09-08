@@ -34,7 +34,7 @@ jobs:
 
       - run:
          name: Package AWS handler
-         command: zip zipgeo_handler.zip ./zipgeo
+         command: zip zipgeo_handler.zip ./zipgeo ./zipgeo.db
 
       - run:
          name: Push package to artifacts
