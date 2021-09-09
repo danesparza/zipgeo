@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -31,15 +32,35 @@ func (s ZipGeoService) GetLatLong(ctx context.Context, zipcode string) (ZipGeo, 
 	retval.Zipcode = zip
 
 	dbname := "zipgeo.db"
-	sysdb, err := buntdb.Open(dbname)
+
+	//	Create an in-memory database:
+	sysdb, err := buntdb.Open(":memory:")
 	if err != nil {
 		seg.Close(err)
-		return retval, fmt.Errorf("problem opening the zipgeo.db: %v", err)
+		return retval, fmt.Errorf("problem opening in memory database: %v", err)
 	}
 	defer sysdb.Close()
 
+	//	Open the database file read-only
+	f, err := os.Open(dbname)
+	if err != nil {
+		seg.Close(err)
+		return retval, fmt.Errorf("problem opening zipgeo.db file: %v", err)
+	}
+	defer f.Close()
+
+	//	Load the file into the in-memory database
+	if err := sysdb.Load(f); err != nil {
+		seg.Close(err)
+		return retval, fmt.Errorf("problem loading data to in-memory database: %v", err)
+	}
+
 	//	Create our indexes
-	sysdb.CreateIndex("zip", "zip:*", buntdb.IndexString)
+	err = sysdb.CreateIndex("zip", "zip:*", buntdb.IndexString)
+	if err != nil {
+		seg.Close(err)
+		return retval, fmt.Errorf("problem creating indices: %v", err)
+	}
 
 	//	Fetch our latlong
 	latlong := ""
